@@ -1,0 +1,61 @@
+import requests
+from lxml import etree
+import openpyxl
+
+url = 'https://www.qiushibaike.com/imgrank'
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36'}
+
+
+def get_list(url):
+    tree = etree.HTML(requests.get(url=url, headers=headers).text)
+    half_link = 'https://www.qiushibaike.com'
+    t_list = []
+    i_list = []
+    page_count = tree.xpath('//*[@id="content"]/div/div[2]/ul/li[7]/a/span/text()')[0].strip()
+
+    for i in range(1, int(page_count)):
+        url = 'https://www.qiushibaike.com/imgrank/page/' + str(i)
+        tree = etree.HTML(requests.get(url=url, headers=headers).text)
+        divs = tree.xpath('/html/body/div[1]/div/div[2]/div')
+        for div in divs:
+            link = div.xpath('./a/@href')[0]
+            title = div.xpath('./a/div/span/text()')[0].strip()
+            author_l = div.xpath('./div/a[2]/h2/text()')
+            smile = div.xpath('./div/span/i/text()')[0]
+            comment = div.xpath('./div/span/a/i/text()')[0]
+            if (len(author_l)) == 0:
+                author = '匿名用户'
+            else:
+                author = author_l[0]
+
+            t_list.append(title)
+            t_list.append(half_link + link)
+            t_list.append(author)
+            t_list.append(smile)
+            t_list.append(comment)
+            i_list.append(t_list)
+            t_list = []
+    i_list.insert(0, ['title', 'link', 'author', 'smile', 'comment'])
+    return i_list
+
+
+def write_list_2_excel(list):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = '糗事百科'
+    i = 1
+    r = 1
+    for line in list:
+        for col in range(1, len(line) + 1):
+            ColNum = r
+            ws.cell(row=r, column=col).value = line[col - 1]
+        i += 1
+        r += 1
+    # 工作簿保存到磁盘
+    wb.save('test.xlsx')
+
+
+if __name__ == '__main__':
+    list = get_list(url)
+    write_list_2_excel(list)
